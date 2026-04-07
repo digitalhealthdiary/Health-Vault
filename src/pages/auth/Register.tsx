@@ -6,7 +6,7 @@ import { ID } from 'appwrite';
 import { useAuth } from '../../context/AuthContext';
 
 export default function Register() {
-  const [role, setRole] = useState<'patient' | 'doctor'>('patient');
+  const role = 'patient';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,22 +62,7 @@ export default function Register() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="bg-white/80 backdrop-blur-xl py-8 px-4 shadow-xl shadow-blue-900/5 sm:rounded-3xl sm:px-10 border border-white/50">
           
-          <div className="mb-8 flex p-1 space-x-1 bg-gray-100/80 rounded-xl">
-            <button
-              type="button"
-              className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${role === 'patient' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-              onClick={() => setRole('patient')}
-            >
-              Patient
-            </button>
-            <button
-              type="button"
-              className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${role === 'doctor' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-              onClick={() => setRole('doctor')}
-            >
-              Doctor
-            </button>
-          </div>
+
 
           {error && (
             <div className="mb-6 bg-red-50 text-red-600 p-3 rounded-lg text-sm border border-red-100">
@@ -93,7 +78,7 @@ export default function Register() {
                   type="text"
                   required
                   className="appearance-none block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder={role === 'doctor' ? "Dr. Jane Doe" : "John Doe"}
+                  placeholder="John Doe"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
