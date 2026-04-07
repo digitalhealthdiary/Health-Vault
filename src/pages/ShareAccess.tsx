@@ -35,7 +35,7 @@ export default function ShareAccess() {
             name: d.name,
             token: d.token,
             createdAt: new Date(d.$createdAt).getTime(),
-            expiresAt: d.expiresAt
+            expiresAt: d.expiresAt ? d.expiresAt * 1000 : null
           }));
           setLinks(formatted);
         } catch (error) {
@@ -72,7 +72,7 @@ export default function ShareAccess() {
           userId: user.$id,
           name: newLinkName,
           token,
-          expiresAt: expTime
+          expiresAt: expTime ? Math.floor(expTime / 1000) : null
         }
       );
 
