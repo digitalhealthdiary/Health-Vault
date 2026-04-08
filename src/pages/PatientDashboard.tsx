@@ -4,6 +4,7 @@ import { databases, APPWRITE_CONFIG } from '../lib/appwrite';
 import { Query } from 'appwrite';
 import { Link } from 'react-router-dom';
 import { Activity } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export default function PatientDashboard() {
   const { user } = useAuth();
@@ -34,15 +35,44 @@ export default function PatientDashboard() {
   }, [user]);
   
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <h1 className="text-2xl font-bold text-gray-900">Welcome back, {firstName} 👋</h1>
-      <p className="text-gray-500">Here's your latest health summary overview.</p>
+    <motion.div 
+      className="space-y-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
+        <h1 className="text-2xl font-bold text-gray-900">Welcome back, {firstName} 👋</h1>
+        <p className="text-gray-500">Here's your latest health summary overview.</p>
+      </motion.div>
       
       {loading ? (
-        <div className="flex justify-center py-12"><Activity className="w-8 h-8 text-blue-500 animate-pulse" /></div>
+        <motion.div 
+          className="flex justify-center py-12"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Activity className="w-8 h-8 text-blue-500 animate-pulse" />
+        </motion.div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
+          <motion.div 
+            className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            whileHover={{ y: -2, transition: { duration: 0.2 } }}
+          >
             <div className="flex justify-between items-start">
               <h3 className="text-gray-500 text-sm font-medium">Heart Rate</h3>
               {latestVitals && latestVitals.heartRate ? (
@@ -56,9 +86,15 @@ export default function PatientDashboard() {
               <span className="ml-1 text-sm font-medium text-gray-500">bpm</span>
             </div>
             {latestVitals && <p className="text-xs text-gray-400 mt-2">Logged {new Date(latestVitals.date).toLocaleDateString()}</p>}
-          </div>
+          </motion.div>
           
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+          <motion.div 
+            className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            whileHover={{ y: -2, transition: { duration: 0.2 } }}
+          >
             <div className="flex justify-between items-start">
               <h3 className="text-gray-500 text-sm font-medium">Blood Pressure</h3>
               {latestVitals && latestVitals.systolic ? (
@@ -72,20 +108,26 @@ export default function PatientDashboard() {
               <span className="ml-1 text-sm font-medium text-gray-500">mmHg</span>
             </div>
             {latestVitals && <p className="text-xs text-gray-400 mt-2">Logged {new Date(latestVitals.date).toLocaleDateString()}</p>}
-          </div>
+          </motion.div>
           
-          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 shadow-lg shadow-blue-200 text-white relative overflow-hidden group hover:-translate-y-1 transition-transform">
+          <motion.div 
+            className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 shadow-lg shadow-blue-200 text-white relative overflow-hidden group hover:-translate-y-1 transition-transform"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+          >
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
             <h3 className="text-blue-100 text-sm font-medium relative z-10">AI Health Insights</h3>
             <p className="mt-4 text-sm text-blue-50 relative z-10 leading-relaxed">
               Ready to analyze your latest data? Head over to the reports section to generate a personalized AI summary.
             </p>
-            <Link to="/reports" className="inline-block mt-6 bg-white/20 hover:bg-white/30 text-white text-sm font-medium py-2 px-4 rounded-xl transition-colors relative z-10">
+            <Link to="/dashboard/reports" className="inline-block mt-6 bg-white/20 hover:bg-white/30 text-white text-sm font-medium py-2 px-4 rounded-xl transition-colors relative z-10">
               Generate Report
             </Link>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }

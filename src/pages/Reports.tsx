@@ -4,6 +4,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { databases, APPWRITE_CONFIG } from '../lib/appwrite';
 import { Query } from 'appwrite';
 import { Activity, Sparkles, FileText, Calendar, Pill, Upload } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface DoseSlot { time: string; takenDate: string | null; }
 interface MedData { name: string; dosage: string; doses?: DoseSlot[]; time?: string; inventory?: number; }
@@ -46,6 +47,91 @@ export default function Reports() {
     } catch { /* ignore */ }
 
   }, [user]);
+
+  // Helper: call AI with Gemini primary + OpenRouter fallback
+  const callAIWithFallback = async (prompt: string, geminiApiKey: string, openRouterApiKey?: string): Promise<string> => {
+    // First try Gemini with retry + model fallback
+    const models = ['gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+    const maxRetries = 3;
+
+    for (const model of models) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.candidates?.length > 0) {
+            return data.candidates[0].content.parts[0].text;
+          }
+          throw new Error('No candidates returned from Gemini.');
+        }
+
+        // If 503 / 429 (overloaded or rate-limited), retry with backoff
+        if (response.status === 503 || response.status === 429) {
+          console.warn(`Gemini ${model} returned ${response.status} (attempt ${attempt}/${maxRetries})`);
+          if (attempt < maxRetries) {
+            const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+            await new Promise(r => setTimeout(r, delay));
+            continue;
+          }
+          // Exhausted retries for this model — try next model
+          console.warn(`All retries exhausted for ${model}, trying next model...`);
+          break;
+        }
+
+        // Any other HTTP error — throw immediately
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData?.error?.message || `Gemini API returned status ${response.status}`
+        );
+      }
+    }
+
+    // If all Gemini attempts failed, try OpenRouter as fallback
+    if (openRouterApiKey) {
+      console.log('Gemini unavailable, trying OpenRouter fallback...');
+      try {
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openRouterApiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'Health Report Generator'
+          },
+          body: JSON.stringify({
+            model: 'openai/gpt-oss-120b:free', // Free model
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.7,
+            max_tokens: 2000
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.choices?.length > 0) {
+            return data.choices[0].message.content;
+          }
+          throw new Error('No response from OpenRouter.');
+        }
+
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData?.error?.message || `OpenRouter API returned status ${response.status}`
+        );
+      } catch (error) {
+        console.error('OpenRouter fallback failed:', error);
+        // Continue to throw the original error
+      }
+    }
+
+    throw new Error('All AI services are currently unavailable. Please try again in a few minutes.');
+  };
 
   const generateReport = async () => {
     if (!user) return;
@@ -102,53 +188,72 @@ ${recordsSummary}
 `.trim();
 
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-        }
-      );
-
-      const data = await response.json();
-      if (data.candidates?.length > 0) {
-        setReport(data.candidates[0].content.parts[0].text);
-        addNotification('AI Insight Ready', 'Your comprehensive health report has been generated!', 'success');
-      } else {
-        setReport('Failed to generate report. Please try again.');
-      }
+      const openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+      const text = await callAIWithFallback(prompt, apiKey, openRouterKey);
+      setReport(text);
+      addNotification('AI Insight Ready', 'Your comprehensive health report has been generated!', 'success');
     } catch (error) {
       console.error(error);
-      setReport('An error occurred while generating the report via Gemini API.');
+      const msg = error instanceof Error ? error.message : 'An unexpected error occurred.';
+      setReport(`⚠️ ${msg}\n\nPlease wait a minute and try again.`);
+      addNotification('Report Failed', msg, 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div>
+    <motion.div 
+      className="space-y-8"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
         <h1 className="text-2xl font-bold text-gray-900">AI Health Reports</h1>
-        <p className="text-gray-500 mt-1">Comprehensive insights from your vitals, medications & documents — powered by Gemini 2.5 Flash</p>
-      </div>
+        <p className="text-gray-500 mt-1">Comprehensive insights from your vitals, medications & documents — powered by Gemini or OpenRouter</p>
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <motion.div 
+        className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
+      >
 
         {/* Left Column */}
         <div className="lg:col-span-1 space-y-5">
           {/* Generate Card */}
-          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 shadow-md text-white relative overflow-hidden">
+          <motion.div 
+            className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 shadow-md text-white relative overflow-hidden cursor-pointer"
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+            whileTap={{ scale: 0.98 }}
+          >
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
-            <Sparkles className="w-8 h-8 mb-4 text-purple-200" />
+            <motion.div
+              initial={{ rotate: -10, scale: 0 }}
+              animate={{ rotate: 0, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.6, type: "spring", stiffness: 200 }}
+            >
+              <Sparkles className="w-8 h-8 mb-4 text-purple-200" />
+            </motion.div>
             <h2 className="text-lg font-semibold relative z-10">Comprehensive AI Report</h2>
             <p className="text-sm text-indigo-100 mt-2 relative z-10 leading-relaxed">
-              Gemini analyzes your <strong>vitals</strong>, <strong>medications</strong>, and <strong>uploaded documents</strong> together for a complete picture.
+              AI analyzes your <strong>vitals</strong>, <strong>medications</strong>, and <strong>uploaded documents</strong> together for a complete picture.
             </p>
-            <button
+            <motion.button
               onClick={generateReport}
               disabled={loading}
               className="mt-6 w-full bg-white text-indigo-600 font-semibold py-3 rounded-xl shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 disabled:opacity-75 disabled:hover:translate-y-0 disabled:cursor-not-allowed relative z-10"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -159,91 +264,185 @@ ${recordsSummary}
                   Analyzing all data...
                 </span>
               ) : 'Generate Full Report'}
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
 
           {/* Data Summary Cards */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
-            <h3 className="font-semibold text-gray-800 flex items-center">
+          <motion.div 
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+          >
+            <motion.h3 
+              className="font-semibold text-gray-800 flex items-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+            >
               <Calendar className="w-4 h-4 mr-2 text-gray-400" /> Data Being Analyzed
-            </h3>
+            </motion.h3>
 
-            <div className="flex items-center justify-between py-2.5 px-3 bg-rose-50 rounded-xl border border-rose-100">
+            <motion.div 
+              className="flex items-center justify-between py-2.5 px-3 bg-rose-50 rounded-xl border border-rose-100"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.9 }}
+            >
               <div className="flex items-center text-sm font-medium text-rose-700">
                 <Activity className="w-4 h-4 mr-2" /> Vital Logs
               </div>
               <span className="text-sm font-bold text-rose-700">{vitalsHistory.length}</span>
-            </div>
+            </motion.div>
 
-            <div className="flex items-center justify-between py-2.5 px-3 bg-emerald-50 rounded-xl border border-emerald-100">
+            <motion.div 
+              className="flex items-center justify-between py-2.5 px-3 bg-emerald-50 rounded-xl border border-emerald-100"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.0 }}
+            >
               <div className="flex items-center text-sm font-medium text-emerald-700">
                 <Pill className="w-4 h-4 mr-2" /> Active Medications
               </div>
               <span className="text-sm font-bold text-emerald-700">{medsData.length}</span>
-            </div>
+            </motion.div>
 
-            <div className="flex items-center justify-between py-2.5 px-3 bg-indigo-50 rounded-xl border border-indigo-100">
+            <motion.div 
+              className="flex items-center justify-between py-2.5 px-3 bg-indigo-50 rounded-xl border border-indigo-100"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.1 }}
+            >
               <div className="flex items-center text-sm font-medium text-indigo-700">
                 <Upload className="w-4 h-4 mr-2" /> Uploaded Records
               </div>
               <span className="text-sm font-bold text-indigo-700">{recordsHistory.length}</span>
-            </div>
+            </motion.div>
 
             {/* Recent vitals preview */}
             {vitalsHistory.length > 0 && (
-              <div className="mt-2 space-y-1.5 max-h-36 overflow-y-auto pr-1">
+              <motion.div 
+                className="mt-2 space-y-1.5 max-h-36 overflow-y-auto pr-1"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.2 }}
+              >
                 <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1">Recent Vitals</p>
-                {vitalsHistory.slice(0, 5).map(v => (
-                  <div key={v.$id as string} className="text-xs p-2 bg-gray-50 rounded-lg border border-gray-100 flex justify-between">
+                {vitalsHistory.slice(0, 5).map((v, index) => (
+                  <motion.div 
+                    key={v.$id as string} 
+                    className="text-xs p-2 bg-gray-50 rounded-lg border border-gray-100 flex justify-between"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 1.3 + index * 0.1 }}
+                  >
                     <span className="text-gray-400">{new Date(v.date as string).toLocaleDateString()}</span>
                     <span className="font-medium text-gray-700">BP: {v.systolic as number}/{v.diastolic as number} · HR: {v.heartRate as number}</span>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             )}
-          </div>
+          </motion.div>
         </div>
 
         {/* Right Column: Report */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 min-h-[500px]">
+        <motion.div 
+          className="lg:col-span-2"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+        >
+          <motion.div 
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 min-h-[500px]"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.7 }}
+          >
             {report ? (
-              <div className="animate-in fade-in duration-500">
-                <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-100">
-                  <div className="p-2 bg-purple-100 rounded-lg">
+              <motion.div 
+                className="animate-in fade-in duration-500"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.8 }}
+              >
+                <motion.div 
+                  className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-100"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.9 }}
+                >
+                  <motion.div 
+                    className="p-2 bg-purple-100 rounded-lg"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 1.0, type: "spring", stiffness: 200 }}
+                  >
                     <Sparkles className="w-6 h-6 text-purple-600" />
-                  </div>
+                  </motion.div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">Comprehensive Health Report</h2>
                     <p className="text-sm text-gray-500">
-                      Generated by Gemini 2.5 Flash · {vitalsHistory.length} vitals · {medsData.length} medications · {recordsHistory.length} documents · {new Date().toLocaleDateString()}
+                      Generated by AI · {vitalsHistory.length} vitals · {medsData.length} medications · {recordsHistory.length} documents · {new Date().toLocaleDateString()}
                     </p>
                   </div>
-                </div>
+                </motion.div>
 
-                <div className="max-w-none">
+                <motion.div 
+                  className="max-w-none"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1.1 }}
+                >
                   <p className="whitespace-pre-wrap text-gray-700 leading-relaxed text-sm font-medium">
                     {report}
                   </p>
-                </div>
+                </motion.div>
 
-                <div className="mt-10 p-4 bg-blue-50 text-blue-800 rounded-xl text-sm flex items-start">
+                <motion.div 
+                  className="mt-10 p-4 bg-blue-50 text-blue-800 rounded-xl text-sm flex items-start"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.2 }}
+                >
                   <Activity className="w-5 h-5 mr-3 flex-shrink-0 mt-0.5 text-blue-600" />
                   <p>This AI-generated report is for informational purposes only and does not replace professional medical advice. Always consult your doctor for medical decisions.</p>
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400 py-20">
-                <FileText className="w-12 h-12 mb-4 opacity-30" />
-                <h3 className="text-lg font-medium text-gray-600">No report generated yet</h3>
-                <p className="text-sm mt-2 max-w-sm text-center text-gray-400">
-                  Click "Generate Full Report" to let Gemini analyze all your health data — vitals, medications, and uploaded medical documents — into one comprehensive report.
-                </p>
-              </div>
+              <motion.div 
+                className="h-full flex flex-col items-center justify-center text-gray-400 py-20"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.8 }}
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 1.0, type: "spring", stiffness: 150 }}
+                >
+                  <FileText className="w-12 h-12 mb-4 opacity-30" />
+                </motion.div>
+                <motion.h3 
+                  className="text-lg font-medium text-gray-600"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.1 }}
+                >
+                  No report generated yet
+                </motion.h3>
+                <motion.p 
+                  className="text-sm mt-2 max-w-sm text-center text-gray-400"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.2 }}
+                >
+                  Click "Generate Full Report" to let AI analyze all your health data — vitals, medications, and uploaded medical documents — into one comprehensive report.
+                </motion.p>
+              </motion.div>
             )}
-          </div>
-        </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      </motion.div>
+    </motion.div>
   );
 }

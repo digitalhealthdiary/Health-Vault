@@ -1,53 +1,98 @@
-# React + TypeScript + Vite
+# HealthVault 🏥
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A comprehensive health management platform built with React, TypeScript, and Vite. Track vitals, manage medications, store medical records, and get AI-powered health insights.
 
-Currently, two official plugins are available:
+## ✨ Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Vital Signs Tracking**: Monitor heart rate, blood pressure, and other health metrics
+- **Medication Management**: Smart reminders and inventory tracking for medications
+- **Medical Records**: Securely store and organize medical documents
+- **AI Health Reports**: Get personalized health insights powered by advanced AI
+- **Share Access**: Share health data securely with doctors and family
+- **Privacy First**: End-to-end encrypted health data storage
 
-## React Compiler
+## 🚀 Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
 
-## Expanding the ESLint configuration
+- Node.js (v16 or higher)
+- npm or yarn
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Installation
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+1. Clone the repository
+```bash
+git clone <repository-url>
+cd healthvault
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+2. Install dependencies
+```bash
+npm install
+```
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
+3. Set up environment variables
+Create a `.env.local` file with your API keys:
+```env
+VITE_APPWRITE_ENDPOINT=https://your-appwrite-endpoint
+VITE_APPWRITE_PROJECT_ID=your-project-id
+VITE_GEMINI_API_KEY=your-gemini-api-key
+VITE_OPENROUTER_API_KEY=your-openrouter-api-key
+# ... other required variables
+```
+
+4. Start the development server
+```bash
+npm run dev
+```
+
+5. Open [http://localhost:5173](http://localhost:5173) in your browser
+
+## 🏗️ Tech Stack
+
+- **Frontend**: React 19, TypeScript, Tailwind CSS
+- **Backend**: Appwrite
+- **AI**: Google Gemini & OpenRouter (fallback)
+- **Animations**: Framer Motion
+- **Build Tool**: Vite
+- **Icons**: Lucide React
+
+## 📱 Pages
+
+- **Landing Page**: Marketing page with feature overview
+- **Dashboard**: Main health overview and quick actions
+- **Vitals**: Track and log health measurements
+- **Medications**: Manage prescriptions and reminders
+- **Records**: Upload and organize medical documents
+- **Reports**: AI-generated health insights and summaries
+- **Share Access**: Securely share health data
+
+## 🔧 Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and linting
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🔒 Privacy & Security
+
+HealthVault prioritizes user privacy and data security:
+- End-to-end encryption for all health data
+- Secure authentication with Appwrite
+- No third-party data sharing without explicit consent
+- Compliant with healthcare data protection standards
 import reactDom from 'eslint-plugin-react-dom'
 
 export default defineConfig([

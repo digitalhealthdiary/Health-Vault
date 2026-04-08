@@ -3,16 +3,16 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const patientItems = [
-  { icon: Home, label: 'Dashboard', path: '/' },
-  { icon: Activity, label: 'Vitals', path: '/vitals' },
-  { icon: Pill, label: 'Medications', path: '/medications' },
-  { icon: FileText, label: 'Records', path: '/records' },
-  { icon: PieChart, label: 'Reports', path: '/reports' },
-  { icon: LinkIcon, label: 'Share Access', path: '/share' },
+  { icon: Home, label: 'Dashboard', path: '/dashboard' },
+  { icon: Activity, label: 'Vitals', path: '/dashboard/vitals' },
+  { icon: Pill, label: 'Medications', path: '/dashboard/medications' },
+  { icon: FileText, label: 'Records', path: '/dashboard/records' },
+  { icon: PieChart, label: 'Reports', path: '/dashboard/reports' },
+  { icon: LinkIcon, label: 'Share Access', path: '/dashboard/share' },
 ];
 
 const doctorItems = [
-  { icon: Home, label: 'Doctor Hub', path: '/' },
+  { icon: Home, label: 'Doctor Hub', path: '/dashboard' },
 ];
 
 interface SidebarProps {
